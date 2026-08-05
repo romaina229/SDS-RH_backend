@@ -65,7 +65,7 @@ class TenantSeeder extends Seeder
                     'tenant_id' => null,
                     'first_name' => 'Admin',
                     'last_name' => 'SDS',
-                    'password' => Hash::make($demoPassword),
+                    'password' => Hash::make(env('DEMO_ADMIN_PASSWORD', 'Shalom@2026.')),
                     'phone' => '+229 01 69 35 17 66',
                     'status' => 'active',
                 ]
