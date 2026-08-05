@@ -54,7 +54,7 @@ class TenantSeeder extends Seeder
 
             /*
              * ==========================================================
-             * SUPER ADMIN
+             * SUPER ADMIN (plateforme, indépendant de tout tenant)
              * ==========================================================
              */
             $admin = User::updateOrCreate(
@@ -62,7 +62,7 @@ class TenantSeeder extends Seeder
                     'email' => 'admin@sdsrh.com',
                 ],
                 [
-                    'tenant_id' => $tenant->id,
+                    'tenant_id' => null,
                     'first_name' => 'Admin',
                     'last_name' => 'SDS',
                     'password' => Hash::make($demoPassword),
@@ -75,22 +75,41 @@ class TenantSeeder extends Seeder
              * Le compte principal est maintenant SUPER ADMIN.
              *
              * syncRoles() évite de conserver accidentellement
-             * admin_org ou un autre rôle.
+             * admin_org ou un autre rôle. Aucune fiche Employee n'est
+             * créée pour lui : il gère la plateforme, pas une organisation.
              */
             $admin->syncRoles(['super_admin']);
 
             /*
              * ==========================================================
-             * EMPLOYÉ ASSOCIÉ AU SUPER ADMIN
+             * ADMINISTRATEUR DE L'ORGANISATION DE DÉMO (admin_org)
              * ==========================================================
+             * Compte séparé et indispensable pour pouvoir démontrer/tester
+             * le rôle "Administrateur de l'organisation" indépendamment
+             * du Super Admin.
              */
-            Employee::updateOrCreate(
+            $orgAdmin = User::updateOrCreate(
                 [
-                    'user_id' => $admin->id,
+                    'email' => 'admin.org@sdsrh.com',
                 ],
                 [
                     'tenant_id' => $tenant->id,
-                    'employee_number' => 'EMP-00001-0001',
+                    'first_name' => 'Responsable',
+                    'last_name' => 'RH',
+                    'password' => Hash::make(env('DEMO_ORG_ADMIN_PASSWORD', 'OrgAdmin@2026.')),
+                    'phone' => '+229 01 69 35 17 67',
+                    'status' => 'active',
+                ]
+            );
+            $orgAdmin->syncRoles(['admin_org']);
+
+            Employee::updateOrCreate(
+                [
+                    'user_id' => $orgAdmin->id,
+                ],
+                [
+                    'tenant_id' => $tenant->id,
+                    'employee_number' => 'EMP-' . str_pad($tenant->id, 5, '0', STR_PAD_LEFT) . '-0001',
                     'hire_date' => now(),
                     'status' => 'active',
                 ]
@@ -254,10 +273,14 @@ class TenantSeeder extends Seeder
             $this->command->info('==============================================');
             $this->command->info('✅ SDS-RH - DONNÉES DE DÉMONSTRATION');
             $this->command->info('==============================================');
-            $this->command->info('🏢 Organisation : Shalom Digital Solutions');
-            $this->command->info('👤 Super Admin   : admin@sdsrh.com');
-            $this->command->info('🔑 Mot de passe  : ' . $demoPassword);
-            $this->command->info('🛡️  Rôle          : super_admin');
+            $this->command->info('🏢 Organisation      : Shalom Digital Solutions');
+            $this->command->info('👤 Super Admin       : admin@sdsrh.com');
+            $this->command->info('🔑 Mot de passe      : ' . $demoPassword);
+            $this->command->info('🛡️  Rôle              : super_admin (aucune organisation)');
+            $this->command->info('----------------------------------------------');
+            $this->command->info('👤 Admin Organisation : admin.org@sdsrh.com');
+            $this->command->info('🔑 Mot de passe       : ' . env('DEMO_ORG_ADMIN_PASSWORD', 'OrgAdmin@2026.'));
+            $this->command->info('🛡️  Rôle               : admin_org');
             $this->command->info('==============================================');
             $this->command->info('');
         });

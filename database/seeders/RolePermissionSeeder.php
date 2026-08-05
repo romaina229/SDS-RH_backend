@@ -23,6 +23,7 @@ class RolePermissionSeeder extends Seeder
             'view_documents', 'upload_documents', 'delete_documents',
             'view_trainings', 'create_trainings', 'edit_trainings', 'delete_trainings',
             'view_recruitments', 'create_recruitments', 'edit_recruitments', 'delete_recruitments',
+            'view_performances', 'create_performances', 'edit_performances', 'delete_performances',
             'view_reports', 'view_settings',
         ];
 
@@ -63,6 +64,9 @@ class RolePermissionSeeder extends Seeder
             'upload_documents',
             'view_trainings',
             'view_recruitments',
+            'view_performances',
+            'create_performances',
+            'edit_performances',
             'view_reports',
         ]);
 

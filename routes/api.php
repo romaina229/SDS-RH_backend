@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\PayrollController;
+use App\Http\Controllers\Api\PerformanceController;
 use App\Http\Controllers\Api\PositionController;
 use App\Http\Controllers\Api\RecruitmentController;
 use App\Http\Controllers\Api\ReportController;
@@ -127,6 +128,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/trainings/{training}/enroll', [TrainingController::class, 'enroll'])->middleware('permission:view_trainings');
         Route::post('/trainings/{training}/complete', [TrainingController::class, 'complete'])->middleware('permission:edit_trainings');
 
+        Route::middleware('permission:view_performances')->prefix('performance')->group(function () {
+            Route::get('/goals', [PerformanceController::class, 'goalsIndex']);
+            Route::get('/reviews', [PerformanceController::class, 'reviewsIndex']);
+            Route::get('/stats', [PerformanceController::class, 'stats']);
+        });
+        Route::post('/performance/goals', [PerformanceController::class, 'storeGoal'])->middleware('permission:create_performances');
+        Route::put('/performance/goals/{goal}', [PerformanceController::class, 'updateGoal'])->middleware('permission:edit_performances');
+        Route::delete('/performance/goals/{goal}', [PerformanceController::class, 'destroyGoal'])->middleware('permission:delete_performances');
+        Route::post('/performance/reviews', [PerformanceController::class, 'storeReview'])->middleware('permission:create_performances');
+        Route::put('/performance/reviews/{performance}', [PerformanceController::class, 'updateReview'])->middleware('permission:edit_performances');
+        Route::delete('/performance/reviews/{performance}', [PerformanceController::class, 'destroyReview'])->middleware('permission:delete_performances');
+
         Route::middleware('permission:view_reports')->prefix('reports')->group(function () {
             Route::get('/employees', [ReportController::class, 'employees']);
             Route::get('/attendance', [ReportController::class, 'attendance']);
@@ -142,12 +155,17 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('admin')->middleware('role:super_admin')->group(function () {
+        // Vue d'ensemble de la plateforme (toutes organisations confondues)
+        Route::get('/stats', [TenantController::class, 'stats']);
+
         Route::get('/tenants', [TenantController::class, 'index']);
         Route::post('/tenants', [TenantController::class, 'store']);
         Route::get('/tenants/search', [TenantController::class, 'search']);
         Route::get('/tenants/export', [TenantController::class, 'export']);
         Route::post('/tenants/{tenant}/activate', [TenantController::class, 'activate']);
         Route::post('/tenants/{tenant}/deactivate', [TenantController::class, 'deactivate']);
+        Route::put('/tenants/{tenant}/subscription', [TenantController::class, 'updateSubscription']);
+        Route::get('/tenants/{tenant}/stats', [TenantController::class, 'tenantStats']);
         Route::get('/tenants/{tenant}', [TenantController::class, 'show']);
         Route::put('/tenants/{tenant}', [TenantController::class, 'update']);
         Route::delete('/tenants/{tenant}', [TenantController::class, 'destroy']);
