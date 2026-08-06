@@ -1,0 +1,65 @@
+services:
+  - type: web
+    name: espertisea-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /up
+    envVars:
+      - key: APP_NAME
+        value: "Espertisea API"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_LOCALE
+        value: fr
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: espertisea-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: espertisea-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: espertisea-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: espertisea-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: espertisea-db
+          property: password
+      - key: SESSION_DRIVER
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: LOG_CHANNEL
+        value: stack
+      - key: RUN_MIGRATIONS
+        value: "true"
+      - key: RUN_SEED
+        value: "false"
+
+databases:
+  - name: espertisea-db
+    plan: starter
+    region: frankfurt
+    databaseName: espertisea
+    user: espertisea
