@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -15,29 +16,88 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    /**
+     * Création publique d'une organisation SDS-RH.
+     *
+     * Le prix et les dates d'abonnement sont calculés côté serveur.
+     * Le frontend ne peut donc pas imposer un montant.
+     */
     public function register(Request $request)
     {
         $data = $request->validate([
-            'tenant_name' => 'required|string|max:255',
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email',
-            'password' => 'required|string|min:8|confirmed',
-            'phone' => 'nullable|string|max:20',
+            'organization_name' => ['required', 'string', 'max:255'],
+            'organization_type' => ['required', 'string', 'max:100'],
+            'country' => ['required', 'string', 'in:XOF,EUR,USD'],
+            'sector' => ['required', 'string', 'max:150'],
+            'employee_count' => ['required', 'integer', 'min:1', 'max:200'],
+            'plan' => ['required', 'string', 'in:free,starter,standard,business,enterprise'],
+            'cycle' => ['required', 'string', 'in:monthly,annual'],
+            'currency' => ['required', 'string', 'in:XOF,EUR,USD'],
+            'payment' => ['nullable', 'string', 'in:fedapay,kkiapay,card,paypal,transfer'],
+            'full_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email', 'unique:tenants,email'],
+            'phone' => ['required', 'string', 'max:30'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'cgu' => ['accepted'],
+            'newsletter' => ['nullable', 'boolean'],
         ]);
 
-        $result = DB::transaction(function () use ($data) {
+        $plan = config("sds_rh.plans.{$data['plan']}");
+
+        if (! $plan) {
+            throw ValidationException::withMessages([
+                'plan' => ['La formule sélectionnée est invalide.'],
+            ]);
+        }
+
+        $paymentMethod = $data['plan'] === 'free' ? null : ($data['payment'] ?: 'fedapay');
+
+        [$firstName, $lastName] = $this->splitFullName($data['full_name']);
+
+        $price = $this->calculatePrice(
+            $plan['price_xof_monthly'],
+            $data['cycle'],
+            $data['currency']
+        );
+
+        $isFree = $data['plan'] === 'free';
+        $trialDays = (int) config('sds_rh.trial_days', 14);
+        $startDate = now();
+        $endDate = $isFree ? null : $startDate->copy()->addDays($trialDays);
+
+        $result = DB::transaction(function () use (
+            $data,
+            $firstName,
+            $lastName,
+            $plan,
+            $price,
+            $paymentMethod,
+            $startDate,
+            $endDate,
+            $isFree,
+            $trialDays
+        ) {
             $tenant = Tenant::create([
-                'name' => $data['tenant_name'],
+                'name' => $data['organization_name'],
                 'email' => $data['email'],
-                'phone' => $data['phone'] ?? null,
-                'subscription_plan' => 'gratuit',
-                'subscription_expires_at' => now()->addMonths(6),
+                'phone' => $data['phone'],
+                'subscription_plan' => $plan['db_name'],
+                'subscription_expires_at' => $endDate,
+                'is_active' => true,
                 'settings' => [
                     'language' => 'fr',
-                    'currency' => 'XOF',
+                    'currency' => $data['currency'],
                     'timezone' => 'Africa/Porto-Novo',
-                    'country' => 'BJ',
+                    'country_currency' => $data['country'],
+                    'organization_type' => $data['organization_type'],
+                    'sector' => $data['sector'],
+                    'employee_count' => $data['employee_count'],
+                    'marketing_newsletter' => (bool) ($data['newsletter'] ?? false),
+                    'terms_accepted_at' => now()->toISOString(),
+                    'registration' => [
+                        'source' => 'web',
+                        'trial_days' => $isFree ? 0 : $trialDays,
+                    ],
                 ],
             ]);
 
@@ -45,38 +105,97 @@ class AuthController extends Controller
 
             $user = User::create([
                 'tenant_id' => $tenant->id,
-                'first_name' => $data['first_name'],
-                'last_name' => $data['last_name'],
+                'first_name' => $firstName,
+                'last_name' => $lastName,
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
-                'phone' => $data['phone'] ?? null,
+                'phone' => $data['phone'],
                 'status' => 'active',
             ]);
 
             $user->assignRole('admin_org');
 
-            Employee::create([
+            $employee = Employee::create([
                 'user_id' => $user->id,
-                'employee_number' => 'EMP-' . str_pad($tenant->id, 5, '0', STR_PAD_LEFT) . '-0001',
-                'hire_date' => now()->toDateString(),
+                'employee_number' => 'EMP-' . str_pad((string) $tenant->id, 5, '0', STR_PAD_LEFT) . '-0001',
+                'hire_date' => $startDate->toDateString(),
                 'status' => 'active',
             ]);
 
-            return compact('tenant', 'user');
+            Subscription::create([
+                'tenant_id' => $tenant->id,
+                'plan' => $plan['db_name'],
+                'price' => $price,
+                'currency' => $data['currency'],
+                'billing_cycle' => $data['cycle'],
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'status' => 'active',
+                'features' => [
+                    'employee_limit_min' => $plan['min'],
+                    'employee_limit_max' => $plan['max'] === PHP_INT_MAX ? null : $plan['max'],
+                    'employee_count_at_signup' => $data['employee_count'],
+                    'custom_quote' => $plan['custom_quote'],
+                    'trial' => ! $isFree,
+                    'trial_days' => $isFree ? 0 : $trialDays,
+                ],
+                'payment_reference' => null,
+                'payment_method' => $paymentMethod,
+            ]);
+
+            return [
+                'tenant' => $tenant,
+                'user' => $user,
+                'employee' => $employee,
+            ];
         });
 
-        $user = $result['user'];
+        $user = $result['user']->load('employee');
         $token = $user->createToken('web')->plainTextToken;
 
         return response()->json([
             'message' => 'Organisation créée avec succès',
-            'tenant' => $result['tenant'],
-            'user' => $user->load('employee'),
+            'tenant' => $result['tenant']->fresh(),
+            'user' => $user,
+            'subscription' => $result['tenant']->subscriptions()->latest()->first(),
             'access_token' => $token,
             'token_type' => 'Bearer',
             'roles' => $user->getRoleNames(),
             'permissions' => $user->getAllPermissions()->pluck('name')->values(),
         ], 201);
+    }
+
+    private function splitFullName(string $fullName): array
+    {
+        $parts = preg_split('/\s+/', trim($fullName), 2, PREG_SPLIT_NO_EMPTY);
+
+        $firstName = $parts[0] ?? '';
+        $lastName = $parts[1] ?? $firstName;
+
+        return [$firstName, $lastName];
+    }
+
+    private function calculatePrice(?int $monthlyPriceXof, string $cycle, string $currency): float
+    {
+        if ($monthlyPriceXof === null) {
+
+            return 0;
+        }
+
+        $amountXof = $cycle === 'annual'
+            ? $monthlyPriceXof * 10
+            : $monthlyPriceXof;
+
+        $rate = (float) config("sds_rh.currencies.{$currency}.rate_from_xof", 1);
+        $decimals = (int) config("sds_rh.currencies.{$currency}.decimals", 2);
+
+        $amount = $amountXof * $rate;
+
+        if ($currency === 'XOF') {
+            return (float) (round($amount / 100) * 100);
+        }
+
+        return round($amount, $decimals);
     }
 
     public function login(Request $request)
@@ -98,9 +217,7 @@ class AuthController extends Controller
         if ($user->status !== 'active') {
             Auth::logout();
 
-            return response()->json([
-                'message' => 'Votre compte est désactivé',
-            ], 403);
+            return response()->json(['message' => 'Votre compte est désactivé'], 403);
         }
 
         $tenant = $user->tenant;
@@ -108,9 +225,7 @@ class AuthController extends Controller
         if (! $tenant || ! $tenant->is_active) {
             Auth::logout();
 
-            return response()->json([
-                'message' => 'Votre organisation est inactive',
-            ], 403);
+            return response()->json(['message' => 'Votre organisation est inactive'], 403);
         }
 
         if (
@@ -167,9 +282,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         if (! Hash::check($data['current_password'], $user->password)) {
-            return response()->json([
-                'message' => 'Le mot de passe actuel est incorrect',
-            ], 422);
+            return response()->json(['message' => 'Le mot de passe actuel est incorrect'], 422);
         }
 
         $user->update(['password' => Hash::make($data['new_password'])]);
@@ -180,16 +293,8 @@ class AuthController extends Controller
     public function forgotPassword(Request $request)
     {
         $data = $request->validate(['email' => 'required|email']);
-
         $status = Password::sendResetLink(['email' => $data['email']]);
 
-        if ($status === Password::RESET_LINK_SENT) {
-            return response()->json([
-                'message' => 'Si ce compte existe, un lien de réinitialisation a été envoyé.',
-            ]);
-        }
-
-        // Avoid account enumeration.
         return response()->json([
             'message' => 'Si ce compte existe, un lien de réinitialisation a été envoyé.',
         ]);
@@ -221,8 +326,6 @@ class AuthController extends Controller
             ], 422);
         }
 
-        return response()->json([
-            'message' => 'Mot de passe réinitialisé avec succès.',
-        ]);
+        return response()->json(['message' => 'Mot de passe réinitialisé avec succès.']);
     }
 }
