@@ -88,6 +88,8 @@ class TenantController extends Controller
                 ],
             ]);
 
+            app()->instance('tenant', $tenant);
+
             // Créer l'utilisateur administrateur
             $user = User::create([
                 'tenant_id' => $tenant->id,
@@ -103,7 +105,6 @@ class TenantController extends Controller
 
             // Créer le profil employé de l'admin
             Employee::create([
-                'tenant_id' => $tenant->id,
                 'user_id' => $user->id,
                 'employee_number' => 'EMP-' . str_pad($tenant->id, 5, '0', STR_PAD_LEFT) . '-001',
                 'hire_date' => now(),
@@ -119,6 +120,7 @@ class TenantController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            report($e);
             return response()->json([
                 'message' => 'Une erreur interne est survenue lors de la création.',
             ], 500);

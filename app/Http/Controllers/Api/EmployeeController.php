@@ -134,6 +134,7 @@ class EmployeeController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            report($e); // journalise la vraie erreur dans storage/logs/laravel.log
             return response()->json([
                 'message' => 'Une erreur interne est survenue lors de la création.'
             ], 500);
@@ -211,6 +212,7 @@ class EmployeeController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            report($e);
             return response()->json([
                 'message' => 'Une erreur interne est survenue lors de la mise à jour.'
             ], 500);
@@ -245,6 +247,7 @@ class EmployeeController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            report($e);
             return response()->json([
                 'message' => 'Une erreur interne est survenue lors de la suppression.'
             ], 500);
