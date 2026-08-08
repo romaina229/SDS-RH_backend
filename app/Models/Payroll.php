@@ -11,6 +11,7 @@ class Payroll extends Model
     use BelongsToTenant;
 
     protected $fillable = [
+        'qr_token',
         'employee_id',
         'month',
         'base_salary',

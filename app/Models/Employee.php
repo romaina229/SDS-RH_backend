@@ -21,6 +21,7 @@ class Employee extends Model
         'birth_date',
         'gender',
         'marital_status',
+        'children_count',
         'nationality',
         'emergency_contact',
         'emergency_phone',
@@ -36,6 +37,7 @@ class Employee extends Model
         'terminated_at' => 'datetime',
         'bank_details' => 'array',
         'social_security' => 'array',
+        'children_count' => 'integer',
     ];
 
     public function user(): BelongsTo
@@ -113,5 +115,26 @@ class Employee extends Model
     public function getCurrentLeaveBalanceAttribute()
     {
         return $this->leaveBalances()->where('year', date('Y'))->first();
+    }
+
+    public function getMaritalStatusLabelAttribute(): ?string
+    {
+        return match ($this->marital_status) {
+            'single' => 'Célibataire',
+            'married' => 'Marié(e)',
+            'divorced' => 'Divorcé(e)',
+            'widowed' => 'Veuf/Veuve',
+            default => null,
+        };
+    }
+
+    public function getBankNameAttribute(): ?string
+    {
+        return $this->bank_details['bank_name'] ?? null;
+    }
+
+    public function getBankAccountNumberAttribute(): ?string
+    {
+        return $this->bank_details['account_number'] ?? null;
     }
 }

@@ -36,6 +36,7 @@ class PositionController extends Controller
     {
         $request->validate([
             'title' => 'required|string|max:255',
+            'corps' => 'nullable|string|max:255',
             'code' => [
                 'nullable',
                 'string',
@@ -73,6 +74,7 @@ class PositionController extends Controller
     {
         $request->validate([
             'title' => 'sometimes|string|max:255',
+            'corps' => 'nullable|string|max:255',
             'code' => [
                 'sometimes',
                 'string',

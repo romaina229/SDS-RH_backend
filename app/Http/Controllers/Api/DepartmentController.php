@@ -33,6 +33,7 @@ class DepartmentController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'hierarchy_path' => 'nullable|string|max:255',
             'code' => [
                 'nullable',
                 'string',
@@ -70,6 +71,7 @@ class DepartmentController extends Controller
     {
         $request->validate([
             'name' => 'sometimes|string|max:255',
+            'hierarchy_path' => 'nullable|string|max:255',
             'code' => [
                 'sometimes',
                 'string',

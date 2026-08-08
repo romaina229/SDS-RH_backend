@@ -17,6 +17,7 @@ class Department extends Model
         'description',
         'manager_id',
         'parent_department_id',
+        'hierarchy_path',
         'is_active'
     ];
 
@@ -52,5 +53,24 @@ class Department extends Model
     public function getEmployeeCountAttribute()
     {
         return $this->employees()->where('status', 'active')->count();
+    }
+
+    public function getFullHierarchyAttribute(): string
+    {
+        if (!empty($this->hierarchy_path)) {
+            return $this->hierarchy_path;
+        }
+
+        $chain = [$this->name];
+        $node = $this->parent;
+        $guard = 0;
+
+        while ($node && $guard < 10) {
+            array_unshift($chain, $node->name);
+            $node = $node->parent;
+            $guard++;
+        }
+
+        return implode(' > ', $chain);
     }
 }

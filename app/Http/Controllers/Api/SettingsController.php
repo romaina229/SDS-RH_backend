@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class SettingsController extends Controller
 {
@@ -24,9 +26,14 @@ class SettingsController extends Controller
 
         $data = $request->validate([
             'name' => 'sometimes|string|max:255',
+            'emitting_authority' => 'nullable|string|max:255',
             'email' => 'sometimes|email|unique:tenants,email,' . $tenant->id,
             'phone' => 'nullable|string|max:20',
+            'fax' => 'nullable|string|max:20',
+            'website' => 'nullable|string|max:255',
             'address' => 'nullable|string',
+            'ifu' => 'nullable|string|max:50',
+            'rccm' => 'nullable|string|max:50',
             'settings' => 'nullable|array',
             'settings.language' => 'nullable|in:fr,en',
             'settings.currency' => 'nullable|in:XOF,EUR,USD',
@@ -38,6 +45,35 @@ class SettingsController extends Controller
 
         return response()->json([
             'message' => 'Paramètres mis à jour avec succès',
+            'tenant' => $tenant->fresh(),
+        ]);
+    }
+
+    /**
+     * Upload / remplacement du logo de l'organisation, utilisé en en-tête
+     * du bulletin de paie et dans le Header/Sidebar de l'application.
+     */
+    public function updateLogo(Request $request)
+    {
+        $tenant = app('tenant');
+
+        $request->validate([
+            'logo' => 'required|image|mimes:png,jpg,jpeg,svg,webp|max:2048',
+        ]);
+
+        if ($tenant->logo) {
+            Storage::disk('public')->delete($tenant->logo);
+        }
+
+        $file = $request->file('logo');
+        $fileName = 'logo-' . Str::slug($tenant->name) . '-' . time() . '.' . $file->getClientOriginalExtension();
+        $path = $file->storeAs('tenants/' . $tenant->id, $fileName, 'public');
+
+        $tenant->update(['logo' => $path]);
+
+        return response()->json([
+            'message' => 'Logo mis à jour avec succès',
+            'logo_url' => Storage::url($path),
             'tenant' => $tenant->fresh(),
         ]);
     }

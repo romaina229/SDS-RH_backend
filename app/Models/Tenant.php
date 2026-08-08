@@ -9,10 +9,15 @@ class Tenant extends Model
 {
     protected $fillable = [
         'name',
+        'emitting_authority',
         'email',
         'phone',
+        'fax',
+        'website',
         'address',
         'logo',
+        'ifu',
+        'rccm',
         'subscription_plan',
         'subscription_expires_at',
         'is_active',
@@ -97,8 +102,13 @@ class Tenant extends Model
 
     public function isSubscriptionActive(): bool
     {
-        return $this->subscription_expires_at && 
-               $this->subscription_expires_at->isFuture() && 
+        return $this->subscription_expires_at &&
+               $this->subscription_expires_at->isFuture() &&
                $this->is_active;
+    }
+
+    public function getPayslipHeaderNameAttribute(): string
+    {
+        return $this->emitting_authority ?: $this->name;
     }
 }
