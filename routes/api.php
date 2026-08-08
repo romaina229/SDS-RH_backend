@@ -24,15 +24,15 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/payslips/verify/{qrToken}', [PayrollController::class, 'verify']);
-Route::get('/payslips/verify/{qrToken}', function (string $qrToken) {
-    $payroll = \App\Models\Payroll::with('employee.user')->where('qr_token', $qrToken)->firstOrFail();
-    return response()->json([
-        'employee' => $payroll->employee->full_name,
-        'month' => $payroll->month,
-        'net_salary' => $payroll->net_salary,
-        'status' => $payroll->status,
-    ]);
-});
+//Route::get('/payslips/verify/{qrToken}', function (string $qrToken) {
+//    $payroll = \App\Models\Payroll::with('employee.user')->where('qr_token', $qrToken)->firstOrFail();
+//    return response()->json([
+  //      'employee' => $payroll->employee->full_name,
+    //    'month' => $payroll->month,
+    //    'net_salary' => $payroll->net_salary,
+    //    'status' => $payroll->status,
+    //]);
+//});
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
