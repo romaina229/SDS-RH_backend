@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('tenants', function (Blueprint $table) {
             //$table->string('ifu')->nullable()->after('logo');
-            $table->string('rccm')->nullable()->after('ifu');
+            //$table->string('rccm')->nullable()->after('ifu');
             $table->string('fax')->nullable()->after('phone');
             $table->string('website')->nullable()->after('fax');
             $table->string('emitting_authority')->nullable()->after('name');
