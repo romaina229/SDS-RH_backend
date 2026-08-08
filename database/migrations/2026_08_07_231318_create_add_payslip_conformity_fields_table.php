@@ -8,52 +8,121 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('tenants', function (Blueprint $table) {
-            //$table->string('ifu')->nullable()->after('logo');
-            //$table->string('rccm')->nullable()->after('ifu');
-            $table->string('fax')->nullable()->after('phone');
-            $table->string('website')->nullable()->after('fax');
-            $table->string('emitting_authority')->nullable()->after('name');
-        });
+        /*
+         * TENANTS
+         */
+        if (!Schema::hasColumn('tenants', 'fax')) {
+            Schema::table('tenants', function (Blueprint $table) {
+                $table->string('fax')->nullable();
+            });
+        }
 
-        Schema::table('employees', function (Blueprint $table) {
-            $table->unsignedTinyInteger('children_count')->default(0)->after('marital_status');
-        });
+        if (!Schema::hasColumn('tenants', 'website')) {
+            Schema::table('tenants', function (Blueprint $table) {
+                $table->string('website')->nullable();
+            });
+        }
 
-        Schema::table('positions', function (Blueprint $table) {
-            $table->string('corps')->nullable()->after('title');
-        });
+        if (!Schema::hasColumn('tenants', 'emitting_authority')) {
+            Schema::table('tenants', function (Blueprint $table) {
+                $table->string('emitting_authority')->nullable();
+            });
+        }
 
-        Schema::table('departments', function (Blueprint $table) {
+        /*
+         * EMPLOYEES
+         */
+        if (!Schema::hasColumn('employees', 'children_count')) {
+            Schema::table('employees', function (Blueprint $table) {
+                $table->unsignedTinyInteger('children_count')->default(0);
+            });
+        }
 
-            $table->string('hierarchy_path')->nullable()->after('name');
-        });
+        /*
+         * POSITIONS
+         */
+        if (!Schema::hasColumn('positions', 'corps')) {
+            Schema::table('positions', function (Blueprint $table) {
+                $table->string('corps')->nullable();
+            });
+        }
 
-        Schema::table('payrolls', function (Blueprint $table) {
-            $table->string('qr_token', 64)->nullable()->unique()->after('id');
-        });
+        /*
+         * DEPARTMENTS
+         */
+        if (!Schema::hasColumn('departments', 'hierarchy_path')) {
+            Schema::table('departments', function (Blueprint $table) {
+                $table->string('hierarchy_path')->nullable();
+            });
+        }
+
+        /*
+         * PAYROLLS
+         */
+        if (!Schema::hasColumn('payrolls', 'qr_token')) {
+            Schema::table('payrolls', function (Blueprint $table) {
+                $table->string('qr_token', 64)->nullable()->unique();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('tenants', function (Blueprint $table) {
-            $table->dropColumn([ 'fax', 'website', 'emitting_authority']);
-        });
+        /*
+         * TENANTS
+         */
+        if (Schema::hasColumn('tenants', 'fax')) {
+            Schema::table('tenants', function (Blueprint $table) {
+                $table->dropColumn('fax');
+            });
+        }
 
-        Schema::table('employees', function (Blueprint $table) {
-            $table->dropColumn('children_count');
-        });
+        if (Schema::hasColumn('tenants', 'website')) {
+            Schema::table('tenants', function (Blueprint $table) {
+                $table->dropColumn('website');
+            });
+        }
 
-        Schema::table('positions', function (Blueprint $table) {
-            $table->dropColumn('corps');
-        });
+        if (Schema::hasColumn('tenants', 'emitting_authority')) {
+            Schema::table('tenants', function (Blueprint $table) {
+                $table->dropColumn('emitting_authority');
+            });
+        }
 
-        Schema::table('departments', function (Blueprint $table) {
-            $table->dropColumn('hierarchy_path');
-        });
+        /*
+         * EMPLOYEES
+         */
+        if (Schema::hasColumn('employees', 'children_count')) {
+            Schema::table('employees', function (Blueprint $table) {
+                $table->dropColumn('children_count');
+            });
+        }
 
-        Schema::table('payrolls', function (Blueprint $table) {
-            $table->dropColumn('qr_token');
-        });
+        /*
+         * POSITIONS
+         */
+        if (Schema::hasColumn('positions', 'corps')) {
+            Schema::table('positions', function (Blueprint $table) {
+                $table->dropColumn('corps');
+            });
+        }
+
+        /*
+         * DEPARTMENTS
+         */
+        if (Schema::hasColumn('departments', 'hierarchy_path')) {
+            Schema::table('departments', function (Blueprint $table) {
+                $table->dropColumn('hierarchy_path');
+            });
+        }
+
+        /*
+         * PAYROLLS
+         */
+        if (Schema::hasColumn('payrolls', 'qr_token')) {
+            Schema::table('payrolls', function (Blueprint $table) {
+                $table->dropColumn('qr_token');
+            });
+        }
     }
 };
