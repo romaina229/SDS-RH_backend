@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tenants', function (Blueprint $table) {
-            $table->string('ifu')->nullable()->after('logo');
+            //$table->string('ifu')->nullable()->after('logo');
             $table->string('rccm')->nullable()->after('ifu');
             $table->string('fax')->nullable()->after('phone');
             $table->string('website')->nullable()->after('fax');
@@ -37,7 +37,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('tenants', function (Blueprint $table) {
-            $table->dropColumn(['ifu', 'rccm', 'fax', 'website', 'emitting_authority']);
+            $table->dropColumn([ 'fax', 'website', 'emitting_authority']);
         });
 
         Schema::table('employees', function (Blueprint $table) {
