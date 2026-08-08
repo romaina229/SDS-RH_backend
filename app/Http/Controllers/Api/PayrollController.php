@@ -13,6 +13,13 @@ use Illuminate\Support\Str;
 
 class PayrollController extends Controller
 {
+    /**
+     * Nombre légal d'heures mensuelles utilisé pour un taux horaire
+     * indicatif (173.33h/mois, base 40h/semaine — Bénin). À rendre
+     * configurable par tenant/pays dans une itération future.
+     */
+    private const LEGAL_MONTHLY_HOURS = 173.33;
+
     public function index(Request $request)
     {
         $query = Payroll::with(['employee.user']);
@@ -42,6 +49,8 @@ class PayrollController extends Controller
 
         $tenant = app('tenant');
         $month = $data['month'];
+        $monthStart = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        $workedDays = $monthStart->daysInMonth;
 
         $employees = Employee::with(['contracts' => function ($query) {
             $query->where('status', 'active')->latest('start_date');
@@ -52,7 +61,7 @@ class PayrollController extends Controller
 
         $processed = 0;
 
-        DB::transaction(function () use ($employees, $tenant, $month, $payslipBuilder, &$processed) {
+        DB::transaction(function () use ($employees, $tenant, $month, $workedDays, $payslipBuilder, &$processed) {
             foreach ($employees as $employee) {
                 $contract = $employee->contracts->first();
 
@@ -61,6 +70,7 @@ class PayrollController extends Controller
                 }
 
                 $grossSalary = (float) $contract->base_salary;
+                $hourlyRate = round($grossSalary / self::LEGAL_MONTHLY_HOURS, 0);
 
                 $result = $payslipBuilder->build($employee, $tenant, $grossSalary);
 
@@ -79,6 +89,8 @@ class PayrollController extends Controller
                     ],
                     [
                         'qr_token' => $existingToken ?: Str::random(40),
+                        'worked_days' => $workedDays,
+                        'hourly_rate' => $hourlyRate,
                         'base_salary' => $grossSalary,
                         'overtime_hours' => 0,
                         'overtime_amount' => 0,
@@ -87,6 +99,9 @@ class PayrollController extends Controller
                         'taxes' => collect($result['items'])->firstWhere('code', '855C')['retenue'] ?? 0,
                         'social_security' => $result['total_retenue'],
                         'net_salary' => $result['net'],
+                        'payment_method' => $employee->bank_details['bank_name'] ?? null
+                            ? 'Virement bancaire'
+                            : 'Espèces',
                         'status' => 'processed',
                         'breakdown' => $result['items'],
                     ]

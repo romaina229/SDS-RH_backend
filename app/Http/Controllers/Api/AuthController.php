@@ -222,22 +222,36 @@ class AuthController extends Controller
 
         $tenant = $user->tenant;
 
-        if (! $tenant || ! $tenant->is_active) {
-            Auth::logout();
+        /*
+         * BUG CORRIGÉ : le Super Administrateur de la plateforme n'appartient
+         * volontairement à AUCUNE organisation (tenant_id = null, voir
+         * TenantSeeder et BelongsToTenant). L'ancien code exigeait un tenant
+         * actif pour TOUT utilisateur, y compris le super_admin, ce qui
+         * renvoyait systématiquement "Votre organisation est inactive" au
+         * moment de la connexion du super_admin.
+         *
+         * On applique désormais les contrôles de tenant (actif / abonnement
+         * non expiré) uniquement aux utilisateurs rattachés à une
+         * organisation, c'est-à-dire tous les rôles SAUF super_admin.
+         */
+        if (! $user->hasRole('super_admin')) {
+            if (! $tenant || ! $tenant->is_active) {
+                Auth::logout();
 
-            return response()->json(['message' => 'Votre organisation est inactive'], 403);
-        }
+                return response()->json(['message' => 'Votre organisation est inactive'], 403);
+            }
 
-        if (
-            $tenant->subscription_expires_at
-            && $tenant->subscription_expires_at->isPast()
-            && $tenant->subscription_plan !== 'enterprise'
-        ) {
-            Auth::logout();
+            if (
+                $tenant->subscription_expires_at
+                && $tenant->subscription_expires_at->isPast()
+                && $tenant->subscription_plan !== 'enterprise'
+            ) {
+                Auth::logout();
 
-            return response()->json([
-                'message' => 'L\'abonnement de votre organisation est expiré',
-            ], 403);
+                return response()->json([
+                    'message' => 'L\'abonnement de votre organisation est expiré',
+                ], 403);
+            }
         }
 
         $user->tokens()->delete();
